@@ -1,0 +1,410 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Sabor +58 – Admin</title>
+<link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --rojo:#CF1720;--amarillo:#F5C518;--azul:#003087;
+    --negro:#0f0f0f;--crema:#FFF8EC;--gris:#f0ece4;
+    --gris2:#d8d2c8;--verde:#2ecc71;--sombra:0 4px 20px rgba(0,0,0,0.1);
+  }
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{font-family:'Nunito',sans-serif;background:#f5f5f5;min-height:100vh;}
+
+  header{background:var(--negro);padding:0 28px;height:62px;display:flex;align-items:center;justify-content:space-between;border-bottom:4px solid var(--amarillo);position:sticky;top:0;z-index:100;}
+  .logo{font-family:'Bebas Neue',sans-serif;font-size:1.8rem;color:var(--amarillo);letter-spacing:2px;}
+  .logo span{color:var(--rojo);}
+  .header-right{display:flex;gap:10px;align-items:center;}
+  .btn-volver{background:rgba(255,255,255,.1);color:white;border:none;border-radius:8px;padding:7px 14px;font-family:'Nunito',sans-serif;font-weight:700;font-size:.85rem;cursor:pointer;transition:background .2s;text-decoration:none;display:flex;align-items:center;gap:6px;}
+  .btn-volver:hover{background:rgba(255,255,255,.2);}
+
+  .container{max-width:1200px;margin:0 auto;padding:24px 20px;}
+
+  /* STATS CARDS */
+  .stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:16px;margin-bottom:28px;}
+  .stat-card{background:white;border-radius:14px;padding:20px;box-shadow:var(--sombra);border-top:4px solid var(--amarillo);}
+  .stat-card.rojo{border-top-color:var(--rojo);}
+  .stat-card.verde{border-top-color:var(--verde);}
+  .stat-card.azul{border-top-color:var(--azul);}
+  .stat-valor{font-family:'Bebas Neue',sans-serif;font-size:2.2rem;color:var(--negro);letter-spacing:1px;line-height:1;}
+  .stat-label{font-size:.78rem;color:#888;font-weight:700;text-transform:uppercase;letter-spacing:.5px;margin-top:4px;}
+
+  /* FILTROS */
+  .filtros-card{background:white;border-radius:14px;padding:20px;box-shadow:var(--sombra);margin-bottom:20px;}
+  .filtros-card h3{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:1px;color:var(--negro);margin-bottom:14px;}
+  .filtros-row{display:flex;gap:12px;align-items:flex-end;flex-wrap:wrap;}
+  .filtro-group{display:flex;flex-direction:column;gap:5px;}
+  .filtro-group label{font-size:.75rem;font-weight:800;color:#666;text-transform:uppercase;letter-spacing:.5px;}
+  .filtro-input{border:2px solid var(--gris2);border-radius:8px;padding:8px 12px;font-family:'Nunito',sans-serif;font-size:.9rem;outline:none;transition:border .2s;background:white;}
+  .filtro-input:focus{border-color:var(--azul);}
+  .btn-filtrar{background:var(--azul);color:white;border:none;border-radius:8px;padding:9px 20px;font-family:'Nunito',sans-serif;font-weight:800;font-size:.88rem;cursor:pointer;transition:background .2s;white-space:nowrap;}
+  .btn-filtrar:hover{background:#00236b;}
+  .btn-hoy{background:var(--gris);color:var(--negro);border:none;border-radius:8px;padding:9px 16px;font-family:'Nunito',sans-serif;font-weight:700;font-size:.85rem;cursor:pointer;transition:background .2s;white-space:nowrap;}
+  .btn-hoy:hover{background:var(--gris2);}
+
+  /* TABLA */
+  .tabla-card{background:white;border-radius:14px;box-shadow:var(--sombra);overflow:hidden;}
+  .tabla-header{padding:16px 20px;display:flex;justify-content:space-between;align-items:center;border-bottom:2px solid var(--gris);flex-wrap:wrap;gap:10px;}
+  .tabla-header h3{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:1px;color:var(--negro);}
+  .tabla-acciones{display:flex;gap:8px;}
+  .btn-excel{background:#217346;color:white;border:none;border-radius:8px;padding:8px 16px;font-family:'Nunito',sans-serif;font-weight:800;font-size:.85rem;cursor:pointer;transition:background .2s;display:flex;align-items:center;gap:6px;}
+  .btn-excel:hover{background:#1a5c38;}
+  .btn-csv{background:var(--verde);color:white;border:none;border-radius:8px;padding:8px 16px;font-family:'Nunito',sans-serif;font-weight:800;font-size:.85rem;cursor:pointer;transition:background .2s;display:flex;align-items:center;gap:6px;}
+  .btn-csv:hover{background:#27ae60;}
+
+  .tabla-wrap{overflow-x:auto;}
+  table{width:100%;border-collapse:collapse;}
+  thead tr{background:var(--negro);}
+  thead th{color:var(--amarillo);font-family:'Bebas Neue',sans-serif;font-size:.95rem;letter-spacing:1px;padding:12px 14px;text-align:left;white-space:nowrap;}
+  tbody tr{border-bottom:1px solid var(--gris);transition:background .15s;}
+  tbody tr:hover{background:#fffde7;}
+  tbody tr.entregado{opacity:.6;}
+  td{padding:11px 14px;font-size:.85rem;color:#333;vertical-align:top;}
+  .td-num{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--negro);}
+  .td-cliente{font-weight:700;color:var(--azul);}
+  .td-items{max-width:280px;line-height:1.5;color:#555;}
+  .td-total{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--rojo);white-space:nowrap;}
+  .td-hora{color:#999;font-size:.8rem;white-space:nowrap;}
+  .tag{display:inline-block;border-radius:5px;padding:3px 9px;font-size:.72rem;font-weight:700;}
+  .tag.entregado{background:#d4edda;color:#155724;}
+  .tag.pendiente{background:#fff3cd;color:#856404;}
+
+  .tabla-footer{padding:14px 20px;display:flex;justify-content:space-between;align-items:center;border-top:2px solid var(--gris);background:#fafafa;flex-wrap:wrap;gap:8px;}
+  .tabla-info{font-size:.82rem;color:#888;font-weight:600;}
+  .tabla-total-sum{font-family:'Bebas Neue',sans-serif;font-size:1.4rem;color:var(--negro);}
+
+  .sin-datos{text-align:center;padding:48px 20px;color:#bbb;}
+  .sin-datos .icon{font-size:3rem;margin-bottom:12px;}
+
+  /* TOP PRODUCTOS */
+  .bottom-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:20px;}
+  .info-card{background:white;border-radius:14px;padding:20px;box-shadow:var(--sombra);}
+  .info-card h3{font-family:'Bebas Neue',sans-serif;font-size:1.2rem;letter-spacing:1px;color:var(--negro);margin-bottom:14px;}
+  .top-item{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--gris);}
+  .top-item:last-child{border:none;}
+  .top-nombre{font-weight:700;font-size:.88rem;color:var(--negro);}
+  .top-cant{font-family:'Bebas Neue',sans-serif;font-size:1.1rem;color:var(--rojo);}
+  .top-bar-wrap{flex:1;margin:0 12px;height:6px;background:var(--gris);border-radius:3px;overflow:hidden;}
+  .top-bar{height:100%;background:var(--amarillo);border-radius:3px;transition:width .4s ease;}
+
+  .loading{text-align:center;padding:32px;color:#aaa;font-size:.9rem;}
+  .spinner{display:inline-block;width:20px;height:20px;border:3px solid var(--gris2);border-top-color:var(--azul);border-radius:50%;animation:spin .7s linear infinite;vertical-align:middle;margin-right:8px;}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  @media(max-width:700px){
+    .bottom-grid{grid-template-columns:1fr;}
+    .filtros-row{flex-direction:column;}
+    .filtro-group{width:100%;}
+    .filtro-input{width:100%;}
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <div class="logo">SABOR <span>+58</span> <span style="font-size:1rem;color:#aaa;letter-spacing:1px">· ADMIN</span></div>
+  <div class="header-right">
+    <a href="/" class="btn-volver">← Volver a Pedidos</a>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- STATS -->
+  <div class="stats-grid" id="stats-grid">
+    <div class="loading"><span class="spinner"></span>Cargando estadísticas...</div>
+  </div>
+
+  <!-- FILTROS -->
+  <div class="filtros-card">
+    <h3>🔍 Filtrar pedidos</h3>
+    <div class="filtros-row">
+      <div class="filtro-group">
+        <label>Desde</label>
+        <input class="filtro-input" type="date" id="f-desde"/>
+      </div>
+      <div class="filtro-group">
+        <label>Hasta</label>
+        <input class="filtro-input" type="date" id="f-hasta"/>
+      </div>
+      <button class="btn-hoy" onclick="setHoy()">📅 Hoy</button>
+      <button class="btn-filtrar" onclick="buscar()">🔍 Buscar</button>
+    </div>
+  </div>
+
+  <!-- TABLA -->
+  <div class="tabla-card">
+    <div class="tabla-header">
+      <h3>📋 Registro de pedidos</h3>
+      <div class="tabla-acciones">
+        <button class="btn-excel" onclick="exportarExcel()">
+          <span>📗</span> Exportar Excel
+        </button>
+        <button class="btn-csv" onclick="exportarCSV()">
+          <span>📄</span> Exportar CSV
+        </button>
+      </div>
+    </div>
+    <div class="tabla-wrap">
+      <table id="tabla-pedidos">
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>Cliente</th>
+            <th>Productos</th>
+            <th>Total</th>
+            <th>Hora</th>
+            <th>Fecha</th>
+            <th>Estado</th>
+          </tr>
+        </thead>
+        <tbody id="tbody-pedidos">
+          <tr><td colspan="7"><div class="loading"><span class="spinner"></span>Cargando pedidos...</div></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <div class="tabla-footer">
+      <span class="tabla-info" id="tabla-info">—</span>
+      <span class="tabla-total-sum" id="tabla-sum">—</span>
+    </div>
+  </div>
+
+  <!-- TOP PRODUCTOS + RESUMEN -->
+  <div class="bottom-grid">
+    <div class="info-card">
+      <h3>🏆 Top productos (todo el tiempo)</h3>
+      <div id="top-productos"><div class="loading"><span class="spinner"></span></div></div>
+    </div>
+    <div class="info-card">
+      <h3>📅 Resumen del período filtrado</h3>
+      <div id="resumen-periodo"><div class="sin-datos"><div class="icon">📊</div><p>Haz una búsqueda primero</p></div></div>
+    </div>
+  </div>
+
+</div>
+
+<script>
+const API = window.location.origin + '/api';
+const fmt = n => '$' + parseInt(n).toLocaleString('es-CO');
+
+let pedidosActuales = [];
+
+// ─── FECHAS ───────────────────────────────────────────────────────
+function fechaInputHoy() {
+  const h = new Date();
+  return `${h.getFullYear()}-${String(h.getMonth()+1).padStart(2,'0')}-${String(h.getDate()).padStart(2,'0')}`;
+}
+function inputAFecha(val) {
+  const [y,m,d] = val.split('-');
+  return `${d}/${m}/${y}`;
+}
+function fechaAInput(str) {
+  const [d,m,y] = str.split('/');
+  return `${y}-${m}-${d}`;
+}
+function setHoy() {
+  const h = fechaInputHoy();
+  document.getElementById('f-desde').value = h;
+  document.getElementById('f-hasta').value = h;
+  buscar();
+}
+
+// ─── INIT ─────────────────────────────────────────────────────────
+window.onload = () => {
+  const h = fechaInputHoy();
+  document.getElementById('f-desde').value = h;
+  document.getElementById('f-hasta').value = h;
+  cargarStats();
+  buscar();
+};
+
+// ─── STATS GENERALES ─────────────────────────────────────────────
+async function cargarStats() {
+  try {
+    const r = await fetch(`${API}/stats`);
+    const d = await r.json();
+    document.getElementById('stats-grid').innerHTML = `
+      <div class="stat-card">
+        <div class="stat-valor">${d.total.n}</div>
+        <div class="stat-label">Pedidos totales</div>
+      </div>
+      <div class="stat-card rojo">
+        <div class="stat-valor">${fmt(d.total.ventas)}</div>
+        <div class="stat-label">Ventas totales</div>
+      </div>
+      <div class="stat-card verde">
+        <div class="stat-valor">${d.hoy.n}</div>
+        <div class="stat-label">Pedidos hoy</div>
+      </div>
+      <div class="stat-card azul">
+        <div class="stat-valor">${fmt(d.hoy.ventas)}</div>
+        <div class="stat-label">Ventas hoy</div>
+      </div>
+    `;
+    // Top productos
+    const max = d.top_productos[0]?.cantidad || 1;
+    document.getElementById('top-productos').innerHTML = d.top_productos.length
+      ? d.top_productos.map(p => `
+          <div class="top-item">
+            <span class="top-nombre">${p.nombre}</span>
+            <div class="top-bar-wrap"><div class="top-bar" style="width:${Math.round(p.cantidad/max*100)}%"></div></div>
+            <span class="top-cant">${p.cantidad}</span>
+          </div>`).join('')
+      : '<div class="sin-datos"><p>Sin datos aún</p></div>';
+  } catch(e) {
+    document.getElementById('stats-grid').innerHTML = '<div class="loading">⚠️ Error cargando estadísticas</div>';
+  }
+}
+
+// ─── BUSCAR ───────────────────────────────────────────────────────
+async function buscar() {
+  const desde = document.getElementById('f-desde').value;
+  const hasta = document.getElementById('f-hasta').value;
+  if (!desde || !hasta) return;
+
+  const tbody = document.getElementById('tbody-pedidos');
+  tbody.innerHTML = '<tr><td colspan="7"><div class="loading"><span class="spinner"></span>Buscando...</div></td></tr>';
+
+  try {
+    const url = `${API}/pedidos/rango?desde=${encodeURIComponent(inputAFecha(desde))}&hasta=${encodeURIComponent(inputAFecha(hasta))}`;
+    const r = await fetch(url);
+    const data = await r.json();
+    pedidosActuales = data;
+    renderTabla(data);
+    renderResumenPeriodo(data);
+  } catch(e) {
+    tbody.innerHTML = '<tr><td colspan="7"><div class="loading">⚠️ Error al cargar datos</div></td></tr>';
+  }
+}
+
+function renderTabla(data) {
+  const tbody = document.getElementById('tbody-pedidos');
+  const info = document.getElementById('tabla-info');
+  const sum = document.getElementById('tabla-sum');
+
+  if (!data.length) {
+    tbody.innerHTML = `<tr><td colspan="7"><div class="sin-datos"><div class="icon">📭</div><p>No hay pedidos en este período</p></div></td></tr>`;
+    info.textContent = '0 pedidos';
+    sum.textContent = '$0';
+    return;
+  }
+
+  const total = data.reduce((s,p) => s + parseInt(p.total), 0);
+  const entregados = data.filter(p => p.entregado).length;
+  info.textContent = `${data.length} pedidos · ${entregados} entregados`;
+  sum.textContent = 'Total: ' + fmt(total);
+
+  tbody.innerHTML = data.map(p => {
+    const items = Array.isArray(p.items) ? p.items : JSON.parse(p.items);
+    const itemsStr = items.map(i => `${i.qty}× ${i.nombre}`).join(', ');
+    return `<tr class="${p.entregado?'entregado':''}">
+      <td class="td-num">#${p.numero}</td>
+      <td class="td-cliente">${p.cliente || '<span style="color:#bbb">—</span>'}</td>
+      <td class="td-items">${itemsStr}</td>
+      <td class="td-total">${fmt(p.total)}</td>
+      <td class="td-hora">${p.hora}</td>
+      <td class="td-hora">${p.fecha}</td>
+      <td><span class="tag ${p.entregado?'entregado':'pendiente'}">${p.entregado?'✓ Entregado':'⏳ Pendiente'}</span></td>
+    </tr>`;
+  }).join('');
+}
+
+function renderResumenPeriodo(data) {
+  const el = document.getElementById('resumen-periodo');
+  if (!data.length) {
+    el.innerHTML = '<div class="sin-datos"><div class="icon">📊</div><p>Sin pedidos en este período</p></div>';
+    return;
+  }
+  const total = data.reduce((s,p) => s + parseInt(p.total), 0);
+  const entregados = data.filter(p => p.entregado).length;
+  const promedio = Math.round(total / data.length);
+
+  // Agrupar por fecha
+  const porFecha = {};
+  data.forEach(p => {
+    porFecha[p.fecha] = (porFecha[p.fecha] || 0) + parseInt(p.total);
+  });
+  const mejorDia = Object.entries(porFecha).sort((a,b) => b[1]-a[1])[0];
+
+  el.innerHTML = `
+    <div class="top-item"><span class="top-nombre">Total pedidos</span><span class="top-cant">${data.length}</span></div>
+    <div class="top-item"><span class="top-nombre">Entregados</span><span class="top-cant">${entregados}</span></div>
+    <div class="top-item"><span class="top-nombre">Ventas totales</span><span class="top-cant" style="color:var(--verde)">${fmt(total)}</span></div>
+    <div class="top-item"><span class="top-nombre">Ticket promedio</span><span class="top-cant">${fmt(promedio)}</span></div>
+    ${mejorDia ? `<div class="top-item"><span class="top-nombre">Mejor día</span><span class="top-cant" style="font-size:.85rem">${mejorDia[0]}</span></div>` : ''}
+  `;
+}
+
+// ─── EXPORTAR EXCEL ───────────────────────────────────────────────
+function exportarExcel() {
+  if (!pedidosActuales.length) { alert('No hay datos para exportar'); return; }
+
+  const desde = document.getElementById('f-desde').value;
+  const hasta = document.getElementById('f-hasta').value;
+
+  // Hoja 1: Pedidos detallados
+  const filasPedidos = pedidosActuales.map(p => {
+    const items = Array.isArray(p.items) ? p.items : JSON.parse(p.items);
+    return {
+      'Pedido #': p.numero,
+      'Cliente': p.cliente || '',
+      'Productos': items.map(i => `${i.qty}x ${i.nombre}`).join(' | '),
+      'Total': parseInt(p.total),
+      'Hora': p.hora,
+      'Fecha': p.fecha,
+      'Estado': p.entregado ? 'Entregado' : 'Pendiente',
+    };
+  });
+
+  // Hoja 2: Resumen por fecha
+  const porFecha = {};
+  pedidosActuales.forEach(p => {
+    if (!porFecha[p.fecha]) porFecha[p.fecha] = { pedidos: 0, ventas: 0, entregados: 0 };
+    porFecha[p.fecha].pedidos++;
+    porFecha[p.fecha].ventas += parseInt(p.total);
+    if (p.entregado) porFecha[p.fecha].entregados++;
+  });
+  const filasResumen = Object.entries(porFecha)
+    .sort((a,b) => a[0].localeCompare(b[0]))
+    .map(([fecha, d]) => ({
+      'Fecha': fecha,
+      'Pedidos': d.pedidos,
+      'Entregados': d.entregados,
+      'Ventas': d.ventas,
+    }));
+
+  // Crear workbook
+  const wb = XLSX.utils.book_new();
+
+  const ws1 = XLSX.utils.json_to_sheet(filasPedidos);
+  ws1['!cols'] = [
+    {wch:10},{wch:20},{wch:50},{wch:14},{wch:10},{wch:12},{wch:12}
+  ];
+  XLSX.utils.book_append_sheet(wb, ws1, 'Pedidos');
+
+  const ws2 = XLSX.utils.json_to_sheet(filasResumen);
+  ws2['!cols'] = [{wch:14},{wch:10},{wch:12},{wch:14}];
+  XLSX.utils.book_append_sheet(wb, ws2, 'Resumen por día');
+
+  const nombre = `Sabor58_${desde}_${hasta}.xlsx`.replace(/-/g,'');
+  XLSX.writeFile(wb, nombre);
+}
+
+// ─── EXPORTAR CSV ────────────────────────────────────────────────
+function exportarCSV() {
+  if (!pedidosActuales.length) { alert('No hay datos para exportar'); return; }
+  const desde = document.getElementById('f-desde').value;
+  const hasta = document.getElementById('f-hasta').value;
+  const desdeFecha = inputAFecha(desde);
+  const hastaFecha = inputAFecha(hasta);
+  // Usa el endpoint del servidor para CSV de un día o rango
+  const url = `${API}/export?fecha=${encodeURIComponent(desdeFecha)}`;
+  window.open(url);
+}
+</script>
+</body>
+</html>
