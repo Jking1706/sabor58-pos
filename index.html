@@ -77,8 +77,13 @@
 
   /* CARRITO */
   .carrito-panel { background: white; border-left: 1px solid var(--gris2); display: flex; flex-direction: column; overflow: hidden; }
-  .carrito-header { padding: 12px 14px; border-bottom: 2px solid var(--gris); background: var(--negro); }
+  .carrito-header { padding: 12px 14px; border-bottom: 2px solid var(--gris); background: var(--negro); position: relative; }
   .carrito-header h2 { font-family: 'Bebas Neue', sans-serif; font-size: 1.25rem; letter-spacing: 2px; color: var(--amarillo); margin-bottom: 8px; }
+  .carrito-close-btn {
+    display: none; position: absolute; top: 10px; right: 10px; width: 30px; height: 30px;
+    border: none; border-radius: 50%; background: rgba(255,255,255,0.16); color: white;
+    font-size: 1rem; cursor: pointer; align-items: center; justify-content: center;
+  }
   .nombre-input-wrap { display: flex; align-items: center; gap: 8px; }
   .nombre-input {
     flex: 1; background: rgba(255,255,255,0.1); border: 1.5px solid rgba(255,255,255,0.2);
@@ -235,6 +240,42 @@
   .toast { position: fixed; bottom: 28px; left: 50%; transform: translateX(-50%) translateY(80px); background: var(--negro); color: var(--amarillo); padding: 11px 22px; border-radius: 50px; font-weight: 700; font-size: 0.88rem; z-index: 999; transition: transform 0.3s ease; pointer-events: none; white-space: nowrap; }
   .toast.show { transform: translateX(-50%) translateY(0); }
 
+  .cart-fab {
+    display: none; position: fixed; right: 14px; bottom: 16px; z-index: 190;
+    border: none; border-radius: 999px; background: var(--rojo); color: white;
+    padding: 10px 14px; box-shadow: 0 10px 28px rgba(0,0,0,0.28);
+    font-family: 'Nunito', sans-serif; font-weight: 800; cursor: pointer;
+    align-items: center; gap: 8px;
+  }
+  .cart-fab-badge {
+    min-width: 22px; height: 22px; border-radius: 11px; background: var(--amarillo);
+    color: var(--negro); display: flex; align-items: center; justify-content: center;
+    font-size: 0.75rem; padding: 0 6px;
+  }
+  .cart-fab-total { font-family: 'Bebas Neue', sans-serif; font-size: 1.05rem; letter-spacing: 1px; }
+
+  .cart-backdrop {
+    display: none; position: fixed; inset: 0; z-index: 170; background: rgba(0,0,0,0.45);
+    opacity: 0; transition: opacity 0.2s ease;
+  }
+  .cart-backdrop.visible { display: block; opacity: 1; }
+
+  @media (max-width: 900px) {
+    .main { grid-template-columns: 1fr; height: auto; min-height: calc(100vh - 90px); }
+    .menu-panel { padding: 14px 14px 110px; }
+    .carrito-panel {
+      position: fixed; left: 0; right: 0; bottom: 0; top: 94px;
+      z-index: 180; border-left: none; border-top: 2px solid var(--gris2);
+      border-radius: 16px 16px 0 0; box-shadow: 0 -8px 24px rgba(0,0,0,0.22);
+      transform: translateY(105%); transition: transform 0.25s ease;
+    }
+    .carrito-panel.visible-mobile { transform: translateY(0); }
+    .carrito-footer { padding-bottom: calc(10px + env(safe-area-inset-bottom)); }
+    .carrito-close-btn { display: inline-flex; }
+    .cart-fab { display: inline-flex; }
+    body.carrito-mobile-open { overflow: hidden; }
+  }
+
   /* SPINNER */
   .spinner { display: inline-block; width: 16px; height: 16px; border: 2px solid rgba(255,255,255,0.3); border-top-color: white; border-radius: 50%; animation: spin 0.7s linear infinite; vertical-align: middle; }
   @keyframes spin { to { transform: rotate(360deg); } }
@@ -264,6 +305,7 @@
   <div class="carrito-panel">
     <div class="carrito-header">
       <h2>🛒 Pedido actual</h2>
+      <button class="carrito-close-btn" type="button" onclick="toggleCarritoMobile(false)">✕</button>
       <div class="nombre-input-wrap">
         <span>👤</span>
         <input class="nombre-input" id="nombre-cliente" type="text" placeholder="Nombre del cliente (opcional)" maxlength="40"/>
@@ -293,6 +335,13 @@
     </div>
   </div>
 </div>
+
+<button class="cart-fab" id="cartFab" type="button" aria-label="Abrir carrito">
+  <span>🛒</span>
+  <span class="cart-fab-badge" id="cartFabCount">0</span>
+  <span class="cart-fab-total" id="cartFabTotal">$0</span>
+</button>
+<div class="cart-backdrop" id="cartBackdrop"></div>
 
 <!-- OVERLAY PEDIDOS HOY -->
 <div class="overlay" id="overlay-pedidos" onclick="cerrarClick(event,'overlay-pedidos')">
@@ -326,6 +375,7 @@
 
 <script>
 const API = window.location.origin + '/api';
+const MOBILE_BREAKPOINT = 900;
 
 const MENU = [
   { categoria:"🟡 Arepas Venezolanas", productos:[
@@ -377,8 +427,41 @@ const MENU = [
 
 const TODOS = MENU.flatMap(c => c.productos);
 let carrito = {}, pedidos = [], pedidoCount = 0, editandoId = null, servidorOK = false;
+const carritoPanel = document.querySelector('.carrito-panel');
+const cartFab = document.getElementById('cartFab');
+const cartFabCount = document.getElementById('cartFabCount');
+const cartFabTotal = document.getElementById('cartFabTotal');
+const cartBackdrop = document.getElementById('cartBackdrop');
 
 const fmt = n => '$' + n.toLocaleString('es-CO');
+
+function esVistaMovil() {
+  return window.matchMedia(`(max-width: ${MOBILE_BREAKPOINT}px)`).matches;
+}
+
+function toggleCarritoMobile(forceOpen) {
+  if (!esVistaMovil() || !carritoPanel || !cartBackdrop) return;
+  const abrir = typeof forceOpen === 'boolean'
+    ? forceOpen
+    : !carritoPanel.classList.contains('visible-mobile');
+  carritoPanel.classList.toggle('visible-mobile', abrir);
+  cartBackdrop.classList.toggle('visible', abrir);
+  document.body.classList.toggle('carrito-mobile-open', abrir);
+}
+
+function resetCarritoMobile() {
+  if (!carritoPanel || !cartBackdrop) return;
+  carritoPanel.classList.remove('visible-mobile');
+  cartBackdrop.classList.remove('visible');
+  document.body.classList.remove('carrito-mobile-open');
+}
+
+function actualizarFabCarrito() {
+  if (!cartFabCount || !cartFabTotal) return;
+  const cantidad = Object.values(carrito).reduce((s, i) => s + i.qty, 0);
+  cartFabCount.textContent = cantidad;
+  cartFabTotal.textContent = fmt(calcTotal());
+}
 
 // ─── ESTADO SERVIDOR ─────────────────────────────────────────────
 async function verificarServidor() {
@@ -481,6 +564,7 @@ function actualizarUI() {
   if (!items.length) {
     container.innerHTML=`<div class="carrito-vacio"><div class="icon">🫙</div><p>El carrito está vacío.<br/>Selecciona productos del menú.</p></div>`;
     document.getElementById('total-valor').textContent='$0';
+    actualizarFabCarrito();
     calcularCambio(); return;
   }
   let total=0; container.innerHTML='';
@@ -502,6 +586,7 @@ function actualizarUI() {
     container.appendChild(div);
   });
   document.getElementById('total-valor').textContent=fmt(total);
+  actualizarFabCarrito();
   calcularCambio();
 }
 
@@ -542,6 +627,7 @@ async function confirmarPedido() {
   document.getElementById('notas-pedido').value='';
   document.getElementById('pago-input').value='';
   calcularCambio(); actualizarUI(); actualizarStatusBar();
+  if (esVistaMovil()) toggleCarritoMobile(false);
   btn.disabled=false; btn.innerHTML='✅ Guardar pedido';
 }
 
@@ -754,6 +840,13 @@ function mostrarToast(msg) {
 renderMenu();
 verificarServidor();
 setInterval(verificarServidor, 30000); // Re-chequear cada 30s
+actualizarFabCarrito();
+
+cartFab?.addEventListener('click', () => toggleCarritoMobile(true));
+cartBackdrop?.addEventListener('click', () => toggleCarritoMobile(false));
+window.addEventListener('resize', () => {
+  if (!esVistaMovil()) resetCarritoMobile();
+});
 </script>
 </body>
 </html>
